@@ -1,0 +1,5 @@
+mlnx-fw-dump-me (1.mlnx.1.0.0) unstable; urgency=low
+
+  * Initial release. (Closes: #XXXXXX)
+
+ -- Shlomi Bitton <shlomibi@nvidia.com>  Sun, 6 Sep 2020 15:00:00 +0300

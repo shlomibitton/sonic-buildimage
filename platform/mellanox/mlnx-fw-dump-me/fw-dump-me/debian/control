@@ -1,0 +1,18 @@
+Source: mlnx-fw-dump-me
+Priority: optional
+Maintainer: Shlomi Bitton <shlomibi@nvidia.com>
+Standards-Version: 1.0.0
+Section: net
+Homepage: http://www.nvidia.com
+
+Package: mlnx-fw-dump-me
+Architecture: any
+Depends: ${shlibs:Depends}
+Description: This package contains FW Dump Me functionality for SONiC.
+
+Package: mlnx-fw-dump-me-dbgsym
+Architecture: any
+Section: debug
+Priority: extra
+Depends: mlnx-fw-dump-me ${shlibs:Depends}
+Description: Debugging symbols for mlnx-fw-dump-me
