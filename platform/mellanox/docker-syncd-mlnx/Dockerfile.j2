@@ -5,6 +5,8 @@ ARG docker_container_name
 RUN [ -f /etc/rsyslog.conf ] && sed -ri "s/%syslogtag%/$docker_container_name#%syslogtag%/;" /etc/rsyslog.conf
 
 RUN mkdir -p /var/run/sx_sdk
+RUN mkdir -p /var/log/mellanox/fw_dump_me
+RUN mkdir -p /var/run/fw_dump_me
 
 ## Make apt-get non-interactive
 ENV DEBIAN_FRONTEND=noninteractive
