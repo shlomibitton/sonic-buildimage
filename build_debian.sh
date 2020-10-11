@@ -300,7 +300,6 @@ sudo LANG=C DEBIAN_FRONTEND=noninteractive chroot $FILESYSTEM_ROOT apt-get -y in
     squashfs-tools          \
     grub2-common            \
     rsyslog                 \
-    ethtool                 \
     screen                  \
     hping3                  \
     python-scapy            \
@@ -317,6 +316,9 @@ sudo LANG=C DEBIAN_FRONTEND=noninteractive chroot $FILESYSTEM_ROOT apt-get -y in
     cron                    \
     haveged                 \
     jq
+
+# Copy updated ethtool supporting QSFP-DD until a formal release will publish
+sudo cp $files_path/ethtool $FILESYSTEM_ROOT/usr/bin
 
 if [[ $CONFIGURED_ARCH == amd64 ]]; then
 ## Pre-install the fundamental packages for amd64 (x86)
