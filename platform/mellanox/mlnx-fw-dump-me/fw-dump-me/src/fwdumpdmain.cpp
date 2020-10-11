@@ -33,8 +33,7 @@ using namespace std;
 /* Currently CR and SDK, will increase in the future */
 #define DUMP_FILES_TYPE 2
 static const auto DefaultSocketPath = "/var/run/fw_dump_me/fw.sock";
-//static string DefaultDumpPath = "/var/log/mellanox/fw_dump_me";
-static string DefaultDumpPath = "/tmp";
+static string DefaultDumpPath = "/var/log/mellanox/fw_dump_me";
 
 /* Functions */
 static void handle_sdk_health_event(sx_health_cause_t cause, sx_health_severity_t severity, sx_trap_id_t trap_id);
@@ -43,6 +42,7 @@ void signalHandler(int signum);
 void daemon_exit();
 int files_count(const char* path);
 void delete_oldest_file(char *dir);
+string get_time();
 
 /* Global params */
 static sx_user_channel_t g_sdk_channel;
@@ -50,12 +50,12 @@ static sx_api_handle_t g_sdk_handle;
 static int dump_counter = 0;
 static bool dump_is_running = false;
 static bool fw_event_occur = false;
-
+static bool running = true;
 
 /* Event handler function */
 static void handle_sdk_health_event(sx_health_cause_t cause, sx_health_severity_t severity, sx_trap_id_t trap_id) {
 
-    string severity_string, cause_string;
+    string severity_string, cause_string, current_time, dump_file_path;
     stringstream log_msg_stream;
 
     /* Assign a proper label for the severity and decide if to take a dump or not */
@@ -130,7 +130,6 @@ static void handle_sdk_health_event(sx_health_cause_t cause, sx_health_severity_
         return;
     }
 
-
     if (cause == SXD_HEALTH_CAUSE_FW) {
         fw_event_occur = true;
     }
@@ -156,9 +155,15 @@ static void handle_sdk_health_event(sx_health_cause_t cause, sx_health_severity_
     sleep(1);
 
     /* Generate SDK dump file */
-    sx_err = sx_api_dbg_generate_dump(g_sdk_handle, DefaultDumpPath.c_str());
+    current_time = get_time();
+    if (current_time == "") {
+        SWSS_LOG_ERROR("Failed to get time of day");
+    }
+    dump_file_path = DefaultDumpPath;
+    dump_file_path.append("/sdkdump_").append(current_time).append("\0");
+    sx_err = sx_api_dbg_generate_dump(g_sdk_handle, dump_file_path.c_str());
     if (sx_err != SX_STATUS_SUCCESS) {
-        SWSS_LOG_ERROR("Failed to generate SDK dump file %d", sx_err);
+        SWSS_LOG_ERROR("Failed to generate SDK dump file, rc =  %d\n", sx_err);
     }
 
     /* Check how many dumps exist, if limit reached delete oldest one */
@@ -177,8 +182,10 @@ static void handle_sdk_health_event(sx_health_cause_t cause, sx_health_severity_
 
 /* CLI handler function */
 static void handle_cli_request(unique_ptr<Connection> conn, swss::Select* select, bool is_running) {
-    string recvmsg, reply;
+
+    string recvmsg, reply, current_time;
     string dump_file_path = DefaultDumpPath;
+    bool result = true;
 
     /* Path */
     if (!(conn->recv(recvmsg)) || recvmsg.empty())
@@ -187,6 +194,7 @@ static void handle_cli_request(unique_ptr<Connection> conn, swss::Select* select
     }
     if (recvmsg != "None") {
         dump_file_path = recvmsg;
+        dump_file_path[recvmsg.length()] = '\0';
     }
 
     if (is_running) {
@@ -207,7 +215,6 @@ static void handle_cli_request(unique_ptr<Connection> conn, swss::Select* select
         dump_file_path.copy(dbg_params.path, dump_file_path.length(), 0);
         dbg_params.path[dump_file_path.length()] = '\0';
         sx_status_t sx_err;
-        bool result = true;
 
         sx_err = sx_api_dbg_generate_dump_extra(g_sdk_handle, &dbg_params);
         if (sx_err != SX_STATUS_SUCCESS) {
@@ -219,7 +226,12 @@ static void handle_cli_request(unique_ptr<Connection> conn, swss::Select* select
         sleep(1);
 
         /* Generate SDK dump file */
-        sx_err = sx_api_dbg_generate_dump(g_sdk_handle, NULL);
+        current_time = get_time();
+        if (current_time == "") {
+            SWSS_LOG_ERROR("Failed to get time of day");
+        }
+        dump_file_path.append("/sdkdump_").append(current_time).append("\0");
+        sx_err = sx_api_dbg_generate_dump(g_sdk_handle, dump_file_path.c_str());
         if (sx_err != SX_STATUS_SUCCESS) {
             SWSS_LOG_ERROR("Failed to generate SDK dump file, rc =  %d\n", sx_err);
             result = false;
@@ -255,6 +267,7 @@ static void handle_cli_request(unique_ptr<Connection> conn, swss::Select* select
     dump_is_running = false;
 }
 
+/* Signal handler override */
 void signalHandler(int signum)
 {
     SWSS_LOG_ENTER();
@@ -275,8 +288,10 @@ void signalHandler(int signum)
         SWSS_LOG_NOTICE("Unhandled signal: %d, ignoring ...", signum);
         break;
     }
+    
 }
 
+/* Gracefull shutdown for the daemon */
 void daemon_exit() {
     sx_status_t sx_err;
     /* Close host_ifc */
@@ -290,6 +305,7 @@ void daemon_exit() {
     if (sx_err != SX_STATUS_SUCCESS) {
         SWSS_LOG_ERROR("Failed to close SDK API rc = %d", sx_err);
     }
+    running = false;
 }
 
 /* Get a path and return the amount of files under this directory */
@@ -335,6 +351,21 @@ void delete_oldest_file(char *dir) {
     } else {
         SWSS_LOG_ERROR("Failed to open dump directory");
     }
+}
+
+/* Get current time string */
+string get_time() {
+    char time_str[30] = {0};
+    struct timeval tv;
+    struct tm *nowtm = NULL;
+
+    gettimeofday(&tv, NULL);
+    nowtm = localtime(&tv.tv_sec);
+    if (NULL == nowtm) {
+        return "";
+    }
+    strftime(time_str, 30, "%d_%m_%Y-%H_%M_%S", nowtm);
+    return string(time_str);
 }
 
 int main()
@@ -408,7 +439,7 @@ int main()
 
     //Main loop
     SWSS_LOG_NOTICE("Main loop started, listening to events...");
-    while (true) {
+    while (running) {
         /* Wait for event */
         swss::Selectable* currentSelectable {nullptr};
         rc = select.select(&currentSelectable);
