@@ -9,7 +9,7 @@ $(addprefix $(DEST)/, $(MAIN_TARGET)): $(DEST)/% :
 	rm -rf ./ethtool
 	git clone https://git.kernel.org/pub/scm/network/ethtool/ethtool.git
 	pushd $(ETHTOOL)
-	git checkout $(ETHTOOL_HASH)
+	git checkout 88ca347ef35acb16ec0a0107f55ab599ddb18f56
 	# Build package
 	./autogen.sh
 	./configure
