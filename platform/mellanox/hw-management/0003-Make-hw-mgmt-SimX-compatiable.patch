@@ -1,0 +1,21 @@
+diff --git a/usr/usr/bin/hw-management-ready.sh b/usr/usr/bin/hw-management-ready.sh
+index 3c9f7b6..22dc090 100755
+--- a/usr/usr/bin/hw-management-ready.sh
++++ b/usr/usr/bin/hw-management-ready.sh
+@@ -49,9 +49,12 @@ if [ -d /var/run/hw-management ]; then
+ 	rm -fr /var/run/hw-management
+ fi
+ 
+-while [ ! -d /sys/devices/platform/mlxplat/mlxreg-hotplug/hwmon ]
+-do
+-	sleep 1
+-done
++if [ "$(cat /sys/devices/virtual/dmi/id/sys_vendor)" != "QEMU" ]; then
++	while [ ! -d /sys/devices/platform/mlxplat/mlxreg-hotplug/hwmon ]
++	do
++		sleep 1
++	done
++fi
++
+ echo "Start Chassis HW management service."
+ logger -t hw-management -p daemon.notice "Start Chassis HW management service."
