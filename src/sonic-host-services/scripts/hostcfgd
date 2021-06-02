@@ -793,6 +793,12 @@ class HostConfigDaemon:
                 syslog.syslog(syslog.LOG_WARNING, "Enable state of feature '{}' is None".format(feature_name))
                 continue
 
+            # dhcp_relay WA for production issue
+            if feature_name == 'dhcp_relay':
+                device_metadata = self.config_db.get_table('DEVICE_METADATA')
+                if not (device_metadata and device_metadata['localhost'] and device_metadata['localhost']['type'] and device_metadata['localhost']['type'] != "ToRRouter"):
+                    state = "enabled"
+
             target_state = self.get_target_state(feature_name, state)
             # Store the initial value of 'state' field in 'FEATURE' table of a specific container
             self.cached_feature_states[feature_name] = target_state
