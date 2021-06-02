@@ -121,7 +121,7 @@ class Chassis(ChassisBase):
         eeprom_base = "/sys/class/i2c-adapter/i2c-{0}/{0}-0050/eeprom"
         for index in range(self.PORT_START, self.PORTS_IN_BLOCK):
             eeprom_path = eeprom_base.format(self._port_to_i2c_mapping[index])
-            port_type = 'SFP' if index in _sfp_port else 'QSFP'
+            port_type = 'SFP' if index in _sfp_port else 'QSFP_DD'
             sfp_node = Sfp(index, port_type, eeprom_path)
             self._sfp_list.append(sfp_node)
 
@@ -366,3 +366,19 @@ class Chassis(ChassisBase):
         self.sys_ledcolor = color
         return True
 
+    def get_position_in_parent(self):
+        """
+        Retrieves 1-based relative physical position in parent device.
+        Returns:
+            integer: The 1-based relative physical position in parent
+            device or -1 if cannot determine the position
+        """
+        return -1
+
+    def is_replaceable(self):
+        """
+        Indicate whether Chassis is replaceable.
+        Returns:
+            bool: True if it is replaceable.
+        """
+        return False

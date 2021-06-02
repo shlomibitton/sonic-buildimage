@@ -218,7 +218,7 @@ def parse_png(png, hname, dpg_ecmp_content = None):
                     startdevice = link.find(str(QName(ns, "StartDevice"))).text
                     port_device_map[endport] = startdevice
 
-                if linktype != "DeviceInterfaceLink" and linktype != "UnderlayInterfaceLink":
+                if linktype != "DeviceInterfaceLink" and linktype != "UnderlayInterfaceLink" and linktype != "DeviceMgmtLink":
                     continue
 
                 enddevice = link.find(str(QName(ns, "EndDevice"))).text
@@ -230,13 +230,15 @@ def parse_png(png, hname, dpg_ecmp_content = None):
                 if enddevice.lower() == hname.lower():
                     if endport in port_alias_map:
                         endport = port_alias_map[endport]
-                    neighbors[endport] = {'name': startdevice, 'port': startport}
+                    if linktype != "DeviceMgmtLink":
+                        neighbors[endport] = {'name': startdevice, 'port': startport}
                     if bandwidth:
                         port_speeds[endport] = bandwidth
                 elif startdevice.lower() == hname.lower():
                     if startport in port_alias_map:
                         startport = port_alias_map[startport]
-                    neighbors[startport] = {'name': enddevice, 'port': endport}
+                    if linktype != "DeviceMgmtLink":
+                        neighbors[startport] = {'name': enddevice, 'port': endport}
                     if bandwidth:
                         port_speeds[startport] = bandwidth
 
@@ -606,7 +608,11 @@ def parse_dpg(dpg, hname):
                         if panel_port not in intfs_inpc and panel_port not in acl_intfs:
                             acl_intfs.append(panel_port)
                     break
-            if acl_intfs:
+            # if acl is classified as mirror (erpsan) or acl interface 
+            # are binded then do not classify as Control plane.
+            # For multi-asic platforms it's possible there is no
+            # interface are binded to everflow in host namespace.
+            if acl_intfs or is_mirror_v6 or is_mirror:
                 # Remove duplications
                 dedup_intfs = []
                 for intf in acl_intfs:
@@ -787,6 +793,7 @@ def parse_meta(meta, hname):
     region = None
     cloudtype = None
     resource_type = None
+    downstream_subrole = None
     kube_data = {}
     device_metas = meta.find(str(QName(ns, "Devices")))
     for device in device_metas.findall(str(QName(ns1, "DeviceMetadata"))):
@@ -816,11 +823,13 @@ def parse_meta(meta, hname):
                     cloudtype = value
                 elif name == "ResourceType":
                     resource_type = value
+                elif name == "DownStreamSubRole":
+                    downstream_subrole = value
                 elif name == "KubernetesEnabled":
                     kube_data["enable"] = value
                 elif name == "KubernetesServerIp":
                     kube_data["ip"] = value
-    return syslog_servers, dhcp_servers, ntp_servers, tacacs_servers, mgmt_routes, erspan_dst, deployment_id, region, cloudtype, resource_type, kube_data
+    return syslog_servers, dhcp_servers, ntp_servers, tacacs_servers, mgmt_routes, erspan_dst, deployment_id, region, cloudtype, resource_type, downstream_subrole, kube_data
 
 
 def parse_linkmeta(meta, hname):
@@ -845,6 +854,7 @@ def parse_linkmeta(meta, hname):
         has_peer_switch = False
         upper_tor_hostname = ''
         lower_tor_hostname = ''
+        auto_negotiation = None
 
         properties = linkmeta.find(str(QName(ns1, "Properties")))
         for device_property in properties.findall(str(QName(ns1, "DeviceProperty"))):
@@ -858,6 +868,8 @@ def parse_linkmeta(meta, hname):
                 upper_tor_hostname = value
             elif name == "LowerTOR":
                 lower_tor_hostname = value
+            elif name == "AutoNegotiation":
+                auto_negotiation = value
 
         linkmetas[port] = {}
         if fec_disabled:
@@ -867,6 +879,8 @@ def parse_linkmeta(meta, hname):
                 linkmetas[port]["PeerSwitch"] = lower_tor_hostname
             else:
                 linkmetas[port]["PeerSwitch"] = upper_tor_hostname
+        if auto_negotiation:
+            linkmetas[port]["AutoNegotiation"] = auto_negotiation
     return linkmetas
 
 
@@ -1088,6 +1102,7 @@ def parse_xml(filename, platform=None, port_config_file=None, asic_name=None, hw
     devices = None
     sub_role = None
     resource_type = None
+    downstream_subrole = None
     docker_routing_config_mode = "separated"
     port_speeds_default = {}
     port_speed_png = {}
@@ -1146,7 +1161,7 @@ def parse_xml(filename, platform=None, port_config_file=None, asic_name=None, hw
             elif child.tag == str(QName(ns, "UngDec")):
                 (u_neighbors, u_devices, _, _, _, _, _, _) = parse_png(child, hostname, None)
             elif child.tag == str(QName(ns, "MetadataDeclaration")):
-                (syslog_servers, dhcp_servers, ntp_servers, tacacs_servers, mgmt_routes, erspan_dst, deployment_id, region, cloudtype, resource_type, kube_data) = parse_meta(child, hostname)
+                (syslog_servers, dhcp_servers, ntp_servers, tacacs_servers, mgmt_routes, erspan_dst, deployment_id, region, cloudtype, resource_type, downstream_subrole, kube_data) = parse_meta(child, hostname)
             elif child.tag == str(QName(ns, "LinkMetadataDeclaration")):
                 linkmetas = parse_linkmeta(child, hostname)
             elif child.tag == str(QName(ns, "DeviceInfos")):
@@ -1220,6 +1235,9 @@ def parse_xml(filename, platform=None, port_config_file=None, asic_name=None, hw
 
     if resource_type is not None:
         results['DEVICE_METADATA']['localhost']['resource_type'] = resource_type
+
+    if downstream_subrole is not None:
+        results['DEVICE_METADATA']['localhost']['downstream_subrole'] = downstream_subrole
 
     results['BGP_NEIGHBOR'] = bgp_sessions
     results['BGP_MONITORS'] = bgp_monitors
@@ -1308,15 +1326,26 @@ def parse_xml(filename, platform=None, port_config_file=None, asic_name=None, hw
                 print("Warning: ignore interface '%s' as it is not in the port_config.ini" % port_name, file=sys.stderr)
                 continue
 
+        # skip management ports
+        if port_name in mgmt_alias_reverse_mapping.keys():
+            continue
+
         ports.setdefault(port_name, {})['speed'] = port_speed_png[port_name]
 
     for port_name, port in list(ports.items()):
         # get port alias from port_config.ini
         alias = port.get('alias', port_name)
-        # generate default 100G FEC
+        # generate default 100G FEC only if FECDisabled is not true and 'fec' is not defined in port_config.ini
         # Note: FECDisabled only be effective on 100G port right now
-        if port.get('speed') == '100000' and linkmetas.get(alias, {}).get('FECDisabled', '').lower() != 'true':
+        if linkmetas.get(alias, {}).get('FECDisabled', '').lower() == 'true':
+            port['fec'] = 'none'
+        elif not port.get('fec') and port.get('speed') == '100000':
             port['fec'] = 'rs'
+
+        # If AutoNegotiation is available in the minigraph, we override any value we may have received from port_config.ini
+        autoneg = linkmetas.get(alias, {}).get('AutoNegotiation')
+        if autoneg:
+            port['autoneg'] = '1' if autoneg.lower() == 'true' else '0'
 
     # If connected to a smart cable, get the connection position
     for port_name, port in ports.items():
