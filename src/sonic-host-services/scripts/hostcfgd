@@ -155,6 +155,12 @@ class FeatureHandler(object):
                 continue
 
             feature = Feature(feature_name, feature_table[feature_name], self._device_config)
+            # dhcp_relay WA for production issue
+            if feature_name == 'dhcp_relay':
+                device_metadata = self.config_db.get_table('DEVICE_METADATA')
+                if not (device_metadata and device_metadata['localhost'] and device_metadata['localhost']['type'] and device_metadata['localhost']['type'] != "ToRRouter"):
+                    feature.state = "enabled"
+
             self._cached_config.setdefault(feature_name, feature)
 
             self.update_feature_auto_restart(feature)
