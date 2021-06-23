@@ -712,7 +712,7 @@ class HostConfigDaemon:
     def enable_feature(self, feature_names, feature_suffixes):
         start_cmds = []
         for feature_name in feature_names:
-            #Check if it is already enabled, if yes skip the system call
+            # Check if it is already enabled, if yes skip the system call
             cmd = "sudo systemctl status {}.{} | grep Loaded".format(feature_name, feature_suffixes[-1])
             proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             (stdout, stderr) = proc.communicate()
@@ -739,7 +739,7 @@ class HostConfigDaemon:
     def disable_feature(self, feature_names, feature_suffixes):
         stop_cmds = []
         for feature_name in feature_names:
-            #Check if it is already disabled, if yes skip the system call
+            # Check if it is already disabled, if yes skip the system call
             cmd = "sudo systemctl status {}.{} | grep Loaded".format(feature_name, feature_suffixes[-1])
             proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             (stdout, stderr) = proc.communicate()
