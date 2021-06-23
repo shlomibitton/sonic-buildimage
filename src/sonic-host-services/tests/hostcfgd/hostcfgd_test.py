@@ -67,10 +67,7 @@ class TestHostcfgd(TestCase):
         with mock.patch("hostcfgd.subprocess") as mocked_subprocess:
 
             popen_mock = mock.Mock()
-            if test_name == "DualTorCaseWithNoSystemCalls":
-                attrs = {'communicate.return_value': ('enabled', 'error')}
-            else:
-                attrs = {'communicate.return_value': ('output', 'error')}
+            attrs = test_data["popen_attributes"]
             popen_mock.configure_mock(**attrs)
             mocked_subprocess.Popen.return_value = popen_mock 
 

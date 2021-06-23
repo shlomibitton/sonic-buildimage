@@ -96,6 +96,9 @@ HOSTCFGD_TEST_VECTOR = [
                 call("sudo systemctl enable telemetry.timer", shell=True),
                 call("sudo systemctl start telemetry.timer", shell=True),
             ],
+            "popen_attributes": {
+                'communicate.return_value': ('output', 'error')
+            },
         },
     ],
     [
@@ -189,6 +192,9 @@ HOSTCFGD_TEST_VECTOR = [
                 call("sudo systemctl enable telemetry.timer", shell=True),
                 call("sudo systemctl start telemetry.timer", shell=True),
             ],
+            "popen_attributes": {
+                'communicate.return_value': ('output', 'error')
+            },
         },
     ],
     [
@@ -282,6 +288,9 @@ HOSTCFGD_TEST_VECTOR = [
                 call("sudo systemctl enable telemetry.timer", shell=True),
                 call("sudo systemctl start telemetry.timer", shell=True),
             ],
+            "popen_attributes": {
+                'communicate.return_value': ('output', 'error')
+            },
         },
     ],
     [
@@ -365,7 +374,10 @@ HOSTCFGD_TEST_VECTOR = [
                 },
             },
             "expected_subprocess_calls": [
-            ]
+            ],
+            "popen_attributes": {
+                'communicate.return_value': ('enabled', 'error')
+            },
         }
     ]
 ]
