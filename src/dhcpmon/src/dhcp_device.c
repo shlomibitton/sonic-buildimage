@@ -329,7 +329,7 @@ static void read_callback(int fd, short event, void *arg)
 }
 
 /**
- * @code dhcp_device_is_dhcp_inactive(v4counters, v6counters);
+ * @code dhcp_device_is_dhcp_inactive(v4counters, v6counters, type);
  *
  * @brief Check if there were no DHCP activity
  *
@@ -428,7 +428,7 @@ static bool dhcp_device_is_dhcpv6_msg_unhealthy(dhcpv6_message_type_t type,
 }
 
 /**
- * @code dhcp_device_check_positive_health(counters, counters_snapshot);
+ * @code dhcp_device_check_positive_health(v4counters, v6counters, type);
  *
  * @brief Check if DHCPv4/6 relay is functioning properly for monitored messages.
  *        DHCPv4 (Discover, Offer, Request, ACK.) and DHCPv6 (Solicit, Advertise, Request, Reply).
@@ -478,14 +478,14 @@ static dhcp_mon_status_t dhcp_device_check_positive_health(uint64_t v4counters[]
 }
 
 /**
- * @code dhcp_device_check_negative_health(v4counters, v6counters);
+ * @code dhcp_device_check_negative_health(v4counters, v6counters, type);
  *
  * @brief Check that DHCP relayed messages are not being transmitted out of this interface/dev
  *        using its counters. The interface is negatively healthy if there are not DHCP message
  *        travelling through it.
  *
- * @param counters              recent interface counter
- * @param counters_snapshot     snapshot counters
+ * @param v4counters            current/snapshot counter
+ * @param v6counters            current/snapshot counter
  * @param type                  DHCP type
  *
  * @return DHCP_MON_STATUS_HEALTHY, DHCP_MON_STATUS_UNHEALTHY, or DHCP_MON_STATUS_INDETERMINATE
@@ -531,7 +531,7 @@ static dhcp_mon_status_t dhcp_device_check_negative_health(uint64_t v4counters[]
 }
 
 /**
- * @code dhcp_device_check_health(check_type, counters, counters_snapshot);
+ * @code dhcp_device_check_health(check_type, v4counters, v6counters, type);
  *
  * @brief Check that DHCP relay is functioning properly given a check type. Positive check
  *        indicates for every rx of DHCP message of type 'type', there would increment of
@@ -540,7 +540,8 @@ static dhcp_mon_status_t dhcp_device_check_negative_health(uint64_t v4counters[]
  *        considered unhealthy.
  *
  * @param check_type    type of health check
- * @param counters      current/snapshot counter
+ * @param v4counters    current/snapshot counters
+ * @param v6counters    current/snapshot counters
  * @param type          DHCP type
  *
  * @return DHCP_MON_STATUS_HEALTHY, DHCP_MON_STATUS_UNHEALTHY, or DHCP_MON_STATUS_INDETERMINATE
@@ -564,13 +565,14 @@ static dhcp_mon_status_t dhcp_device_check_health(dhcp_mon_check_t check_type,
 }
 
 /**
- * @code dhcp_print_counters(vlan_intf, type, counters);
+ * @code dhcp_print_counters(vlan_intf, type, v4counters, v6counters);
  *
  * @brief prints DHCP counters to sylsog.
  *
- * @param vlan_intf vlan interface name
- * @param type      counter type
- * @param counters  interface counter
+ * @param vlan_intf     vlan interface name
+ * @param type          counter type
+ * @param v4counters    interface counter
+ * @param v6counters    interface counter
  *
  * @return none
  */
@@ -890,7 +892,7 @@ void dhcp_device_shutdown(dhcp_device_context_t *context)
 }
 
 /**
- * @code dhcp_device_get_status(check_type, context);
+ * @code dhcp_device_get_status(check_type, context, type);
  *
  * @brief collects DHCP relay status info for a given interface. If context is null, it will report aggregate
  *        status

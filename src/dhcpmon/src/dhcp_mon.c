@@ -20,8 +20,8 @@
 /** DHCP device/interface state counters */
 typedef struct
 {
-    int v4_count;                               /** count in the number of unhealthy checks */
-    int v6_count;                               /** count in the number of unhealthy checks */
+    int v4_count;                               /** count in the number of DHCPv4 unhealthy checks */
+    int v6_count;                               /** count in the number of DHCPv6 unhealthy checks */
 } dhcp_mon_count_t;
 
 /** DHCP device/interface state */

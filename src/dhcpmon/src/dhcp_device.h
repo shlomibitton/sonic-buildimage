@@ -85,8 +85,8 @@ typedef enum
 /** dhcp type */
 typedef enum
 {
-    DHCPv4_TYPE,      /** DHCP relay is healthy */
-    DHCPv6_TYPE,      /** DHCP relay is unhealthy and is missing out on some packets */
+    DHCPv4_TYPE,
+    DHCPv6_TYPE,
 } dhcp_type_t;
 
 /** dhcp check type */
@@ -107,7 +107,7 @@ typedef struct
 /** DHCP device (interface) context */
 typedef struct
 {
-    int sock;                       /** Raw ipv4 socket associated with this device/interface */
+    int sock;                       /** Raw socket associated with this device/interface */
     in_addr_t ipv4;                 /** ipv4 network address of this device (interface) */
     struct in6_addr ipv6;           /** ipv6 network address of this device (interface) */
     uint8_t mac[ETHER_ADDR_LEN];    /** hardware address of this device (interface) */
@@ -117,7 +117,7 @@ typedef struct
     char intf[IF_NAMESIZE];         /** device (interface) name */
     uint8_t *buffer;                /** buffer used to read socket data */
     size_t snaplen;                 /** snap length or buffer size */
-    counters_t counters;     /** counters for DHCPv4/6 packets */
+    counters_t counters;            /** counters for DHCPv4/6 packets */
 } dhcp_device_context_t;
 
 /**
@@ -238,7 +238,7 @@ void dhcp_device_update_snapshot(dhcp_device_context_t *context);
  * @brief prints status counters to syslog. If context is null, it will print aggregate status
  *
  * @param context       Device (interface) context
- * @param counters_type Counter type to be printed
+ * @param type          Counter type to be printed
  *
  * @return none
  */
